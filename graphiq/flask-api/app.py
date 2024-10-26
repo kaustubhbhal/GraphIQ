@@ -2,6 +2,8 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
+from agent import Model
+
 
 app = Flask(__name__)
 
@@ -20,22 +22,19 @@ def save_diagram():
 def test():
     return "This is a testing message for testing purposes."
 
-@app.route('/chat_claude', methods=['POST'])
-def chat_claude():
-    # Get the JSON data from the request
-    data = request.get_json()
+my_model = Model()
 
-    # Check if the data is received correctly
-    if data is None:
-        return jsonify({'error': 'No JSON data received'}), 400
+@app.route('/chat', methods=['POST'])
+def chat():
+    # Get the input from the request JSON
+    data = request.json
+    user_message = data.get('message', '')
 
-    # Prepare a response
-    response = {
-        'response': f'You said: {data}'
-    }
+    # Call the chat function with the user's message
+    response = my_model.chat(user_message)
 
+    # Return the response in JSON format
     return jsonify(response)
-
 
 if __name__ == '__main__':
     app.run(port=5000)  # You can change the port if needed

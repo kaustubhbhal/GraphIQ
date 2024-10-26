@@ -22,8 +22,8 @@ from langchain_core.messages import HumanMessage
 import json
 
 # LangSmith Tracking
-os.environ["LANGCHAIN_TRACING_V2"] = "true"
-os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGCHAIN_API_KEY")
+#os.environ["LANGCHAIN_TRACING_V2"] = "true"
+#os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGCHAIN_API_KEY")
 
 class Model:
     def __init__(self):
@@ -211,10 +211,10 @@ class Model:
         return return_data
 
 
-with open("./prompts/initial.txt") as f:
-    print(f.read())
-my_model = Model()
-while (True):
-    prompt = input("Human: ")
-    print("Agent:", my_model.chat(prompt))
+#with open("../prompts/initial.txt") as f:
+    #print(f.read())
+#my_model = Model()
+# while (True):
+    # prompt = input("Human: ")
+    # print("Agent:", my_model.chat(prompt))
     
