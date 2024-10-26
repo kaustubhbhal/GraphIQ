@@ -1,0 +1,7 @@
+Given the following text, determine what the person wants by responding with yes or no answers.
+Follow the exampling formatting exactly and do not say anything else.
+
+Example:
+practice problems: yes
+need help/clarification: no
+check work: no

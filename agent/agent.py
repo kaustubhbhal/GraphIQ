@@ -28,6 +28,10 @@ class Model:
         self.diagnosis_attempts = 0
         self.max_diagnosis_attempts = 4
 
+        with open("./prompts/learnBST.txt") as f:
+            initial_prompt = f.read()
+        self.last_prompt = initial_prompt
+
     def parse_mermaid(self, content):
         '''
         Given a Claude output, parse it for mermaid diagram code if it exists
@@ -37,21 +41,21 @@ class Model:
 
         if match:
             mermaid_code = match.group(1)
-            return mermaid_code
+            cleaned_text = re.sub(mermaid_pattern, '', content, flags=re.DOTALL).strip()
+            return mermaid_code, cleaned_text
         else:
-            return None
+            return None, content
 
-    def chat(self, messages):
+    def chat(self, messages, options=None):
         response = self.llm.invoke(messages)
-        diagram = self.parse_mermaid(response.content)
+        diagram, text = self.parse_mermaid(response.content)
 
         return_data = {
             "diagram": diagram,
-            "text": response.content,
+            "text": text,
         }
 
         return return_data
-    
 
     def extract_patient_info(self):
         with open("./prompts/patient_info_prompt.txt", "r") as f:
@@ -177,5 +181,5 @@ class Model:
 
 
 my_model = Model("transcript", "id")
-print(my_model.chat("Create a mermaid diagram of a binary search tree with 10 nodes"))
+print(my_model.chat("How is it going?"))
     
