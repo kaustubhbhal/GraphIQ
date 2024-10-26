@@ -1,0 +1,9 @@
+Given this user input, simply return the topic that they would like to learn about. Do not output anything else.
+
+<example>
+I would like to learn about Binary Search Trees
+
+<output>
+Binary Search Trees
+</output>
+</example>

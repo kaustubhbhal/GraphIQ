@@ -1,0 +1,25 @@
+ll create a practice problem focusing on adding nodes to a Binary Search Tree.
+
+```mermaid
+graph TD
+    A((15)) --> B(( ))
+    A --> C((20))
+    C --> D(( ))
+    C --> E((25))
+```
+
+Here's a practice problem to help you practice adding nodes to a Binary Search Tree.
+
+Starting with the partially filled Binary Search Tree above, add the following numbers in order:
+- 12
+- 17
+- 22
+
+Remember that in a Binary Search Tree:
+- Values less than a node go to the left
+- Values greater than a node go to the right
+- Equal values can go to either side (but we'll say left for this exercise)
+
+Fill in the empty nodes (represented by empty circles) and add any new nodes needed to correctly insert these numbers while maintaining BST properties.
+
+When you're finished, you can ask me to check your work or if you need any hints along the way, feel free to ask for help!

@@ -1,0 +1,6 @@
+
+answer:
+This solution is incorrect. Good attempt but there is something wrong with your solution.
+In a level order traversal you must traverse from left to right of the tree and top to bottom.
+This means the 3 would be present in the tree before the 8. However in your solution, the 8 is present in the tree before the 3 which is incorrect.
+</example>

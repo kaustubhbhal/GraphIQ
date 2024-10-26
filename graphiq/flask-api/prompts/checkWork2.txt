@@ -1,0 +1,45 @@
+
+
+answer:
+This solution is correct. Good Job!
+The node is 12 is less than the root node of 15 so it is added to the left of 15.
+The node 17 is greater than the root node of 15, but less than 20, so it is added to the left of 20.
+The 22 is greater than the root node of 15 and the node 20, but is less than the node 25, so it is added to the left of 25.
+</example>
+
+
+<example>
+problem:
+I'll create a practice problem focusing on the level-order traversal of a Binary Search Tree.
+
+```mermaid
+graph TD
+    A(( )) --> B(( ))
+    A --> C(( ))
+    C --> D(( ))
+    C --> E(( ))
+    B --> F(( ))
+    B --> G(( ))
+```
+
+Here's a practice problem to help you practice adding nodes to a Binary Search Tree.
+
+Starting with the empty Binary Search Tree above, add the following numbers in a level order traversal:
+- 10
+- 6
+- 15
+- 3
+- 8
+- 14
+- 23
+
+Remember that for a Binary Search Tree level-order traversal:
+- Values less than a node go to the left
+- Values greater than a node go to the right
+- Equal values can go to either side (but we'll say left for this exercise)
+
+Fill in the empty nodes (represented by empty circles) and add any new nodes needed to correctly insert these numbers while maintaining BST properties.
+
+When you're finished, you can ask me to check your work or if you need any hints along the way, feel free to ask for help!
+
+student solution:
