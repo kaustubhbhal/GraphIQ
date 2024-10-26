@@ -1,0 +1,37 @@
+Generate practice problems for this student to complete for: {topic}
+
+Using this list of concepts related to the topic, generate a practice problem for the student to complete.
+To do this first select one concept to model the practice problem around. For example if the topic is Binary Search Trees, you can model your practice problems around level-order traversals
+Second generate an example situation where the concept can be applied. For example, you can generate a level order traversal that the user must draw.
+The practice prblems should include an empty or a partially filled mermaid diagram for the user to fill in depending on the concept.
+Third provide the user some instructions of what to draw or do to solve the practice problem without giving them the answer. Give a brief and broad overview of what the student should do without giving them the answer or telling them exactly what to do.
+Finally end with a closing statement telling the user to ask you if they need help or to check their work when they are done.
+
+<example>
+topic: Binary Search Trees
+concepts:
+- pre-order traversal
+- post-order traversal
+- in-order traversal
+- level-order traversal
+- adding
+- removing
+- searching
+
+answer:
+```mermaid
+graph TD
+    A(( )) --> B(( ))
+    A --> C(( ))
+    B --> D(( ))
+    B --> E(( ))
+    C --> F(( ))
+    C --> G(( ))
+```
+Here is a practice problem to help you learn level-order traversals.
+Consider the following level-order traversal [10, 8, 12, 7, 9, 11, 31].
+Fill in the graph with this level-order traversal.
+You can ask me to help if you get stuck at any point or to check your work when you are done.
+
+</example>
+

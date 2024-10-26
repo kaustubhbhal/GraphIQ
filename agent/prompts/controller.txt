@@ -1,0 +1,13 @@
+Given the following text, determine what the person wants by responding with the name of the type of tag they want.
+Follow the exampling formatting exactly and do not say anything else.
+
+<example>
+What does the user want?
+- practice problems
+- need help/clarification
+- check work
+- explain concept
+
+answer:
+practice problems
+</example>
