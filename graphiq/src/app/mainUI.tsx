@@ -5,20 +5,27 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { ZoomIn, ZoomOut, Send, Eraser, Mic, MicOff } from 'lucide-react'
+import { ZoomIn, ZoomOut, Send, Eraser, Mic, MicOff, VolumeX, Volume2 } from 'lucide-react'
 import Mermaid from 'mermaid'
+import html2canvas from 'html2canvas'
 
 export default function Component() {
   const [mermaidSvg, setMermaidSvg] = useState('')
   const [zoomLevel, setZoomLevel] = useState(1.2)
   const canvasRef = useRef(null)
+  const playgroundRef = useRef(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState([
     { text: "Welcome to GraphIQ! How can I assist you with the learning playground?", isUser: false },
   ])
   const [isListening, setIsListening] = useState(false)
-  const recognitionRef = useRef(null)
+  const [isSpeaking, setIsSpeaking] = useState(false)
+  const [submissionStatus, setSubmissionStatus] = useState('')
+  const mediaRecorderRef = useRef(null)
+  const audioChunksRef = useRef([])
+  const speechSynthesisRef = useRef(null)
+  const voiceRef = useRef(null)
 
   useEffect(() => {
     const mermaidDiagram = `
@@ -37,34 +44,45 @@ export default function Component() {
       setMermaidSvg(result.svg)
     })
 
-    // Initialize speech recognition
-    if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-      recognitionRef.current = new SpeechRecognition()
-      recognitionRef.current.continuous = true
-      recognitionRef.current.interimResults = true
+    // Initialize speech synthesis
+    speechSynthesisRef.current = window.speechSynthesis
 
-      recognitionRef.current.onresult = (event) => {
-        const transcript = Array.from(event.results)
-          .map(result => result[0])
-          .map(result => result.transcript)
-          .join('')
-
-        setInput(transcript)
-      }
-
-      recognitionRef.current.onend = () => {
-        setIsListening(false)
-        // Automatically send the message when the microphone is turned off
-        if (input.trim()) {
-          handleSend()
+    // Set up voice
+    const setVoice = () => {
+      const voices = speechSynthesisRef.current.getVoices()
+      // Try to find an Indian English male voice
+      const indianMaleVoice = voices.find(voice => 
+        voice.lang.startsWith('en-IN') && voice.name.toLowerCase().includes('male')
+      )
+      if (indianMaleVoice) {
+        voiceRef.current = indianMaleVoice
+      } else {
+        // If no Indian male voice is found, try to find any Indian English voice
+        const indianVoice = voices.find(voice => voice.lang.startsWith('en-IN'))
+        if (indianVoice) {
+          voiceRef.current = indianVoice
+        } else {
+          // If no Indian voice is found, use the first available English voice
+          const englishVoice = voices.find(voice => voice.lang.startsWith('en-'))
+          if (englishVoice) {
+            voiceRef.current = englishVoice
+          } else if (voices.length > 0) {
+            // If no English voice is found, use the first available voice
+            voiceRef.current = voices[0]
+          }
         }
       }
     }
 
+    if (speechSynthesisRef.current.onvoiceschanged !== undefined) {
+      speechSynthesisRef.current.onvoiceschanged = setVoice
+    }
+
+    setVoice() // Call it once in case voices are already loaded
+
     return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop()
+      if (speechSynthesisRef.current) {
+        speechSynthesisRef.current.cancel()
       }
     }
   }, [])
@@ -127,10 +145,40 @@ export default function Component() {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
   }
 
-  const handleSend = async () => {
-    if (!input.trim()) return
+  const handleSubmit = async () => {
+    if (!playgroundRef.current) return
 
-    setMessages((prev) => [...prev, { text: input, isUser: true }])
+    try {
+      const canvas = await html2canvas(playgroundRef.current)
+      const image = canvas.toDataURL('image/png')
+
+      const response = await fetch('/api/save-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ image }),
+      })
+
+      if (response.ok) {
+        const { fileName } = await response.json()
+        setSubmissionStatus(`Screenshot saved successfully as ${fileName}`)
+      } else {
+        throw new Error('Failed to save image')
+      }
+    } catch (error) {
+      console.error('Error saving image:', error)
+      setSubmissionStatus('Failed to save the screenshot. Please try again.')
+    }
+
+    // Clear the status message after 5 seconds
+    setTimeout(() => setSubmissionStatus(''), 5000)
+  }
+
+  const handleSend = async (messageToSend = input) => {
+    if (!messageToSend.trim()) return
+
+    setMessages((prev) => [...prev, { text: messageToSend, isUser: true }])
 
     try {
       const response = await fetch('/api/generate', {
@@ -138,13 +186,15 @@ export default function Component() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ body: input }),
+        body: JSON.stringify({ body: messageToSend }),
       })
 
       const data = await response.json()
 
       if (response.ok) {
-        setMessages((prev) => [...prev, { text: data.output, isUser: false }])
+        const botMessage = { text: data.output, isUser: false }
+        setMessages((prev) => [...prev, botMessage])
+        speakMessage(botMessage.text)
       } else {
         setMessages((prev) => [...prev, { text: "Error: " + data.error, isUser: false }])
       }
@@ -156,6 +206,23 @@ export default function Component() {
     setInput('')
   }
 
+  const speakMessage = (text) => {
+    if (speechSynthesisRef.current && voiceRef.current) {
+      setIsSpeaking(true)
+      const utterance = new SpeechSynthesisUtterance(text)
+      utterance.voice = voiceRef.current
+      utterance.onend = () => setIsSpeaking(false)
+      speechSynthesisRef.current.speak(utterance)
+    }
+  }
+
+  const stopSpeaking = () => {
+    if (speechSynthesisRef.current) {
+      speechSynthesisRef.current.cancel()
+      setIsSpeaking(false)
+    }
+  }
+
   const zoomIn = () => {
     setZoomLevel(prevZoom => Math.min(prevZoom + 0.1, 2))
   }
@@ -164,12 +231,63 @@ export default function Component() {
     setZoomLevel(prevZoom => Math.max(prevZoom - 0.1, 0.5))
   }
 
-  const toggleListening = () => {
+  const toggleListening = async () => {
     if (isListening) {
-      recognitionRef.current.stop()
+      stopRecording()
     } else {
-      recognitionRef.current.start()
-      setIsListening(true)
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        mediaRecorderRef.current = new MediaRecorder(stream)
+        audioChunksRef.current = []
+
+        mediaRecorderRef.current.ondataavailable = (event) => {
+          audioChunksRef.current.push(event.data)
+        }
+
+        mediaRecorderRef.current.onstop = async () => {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' })
+          await sendAudioToWhisper(audioBlob)
+        }
+
+        mediaRecorderRef.current.start()
+        setIsListening(true)
+      } catch (error) {
+        console.error("Error accessing microphone:", error)
+      }
+    }
+  }
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      mediaRecorderRef.current.stop()
+      setIsListening(false)
+    }
+  }
+
+  const sendAudioToWhisper = async (audioBlob) => {
+    try {
+      const reader = new FileReader()
+      reader.readAsDataURL(audioBlob)
+      reader.onloadend = async () => {
+        const base64Audio = reader.result.split(',')[1]
+
+        const response = await fetch('/api/transcribe', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ audioFile: base64Audio }),
+        })
+
+        if (response.ok) {
+          const { transcription } = await response.json()
+          await handleSend(transcription)
+        } else {
+          console.error("Error transcribing audio")
+        }
+      }
+    } catch (error) {
+      console.error("Error sending audio to Whisper API:", error)
     }
   }
 
@@ -191,7 +309,7 @@ export default function Component() {
             <CardHeader className="border-b border-gray-200">
               <CardTitle className="text-2xl font-semibold text-gray-800">Learning Playground</CardTitle>
             </CardHeader>
-            <CardContent className="p-6 relative min-h-[600px]">
+            <CardContent className="p-6 relative min-h-[600px]" ref={playgroundRef}>
               <div className="absolute inset-0 flex items-center justify-center overflow-auto">
                 <div 
                   dangerouslySetInnerHTML={{ __html: mermaidSvg }} 
@@ -224,8 +342,16 @@ export default function Component() {
                     <Eraser className="h-4 w-4 mr-2" />
                     Clear
                   </Button>
+                  <Button onClick={handleSubmit} variant="outline" className="text-blue-600 border-blue-300">
+                    Submit
+                  </Button>
                 </div>
               </div>
+              {submissionStatus && (
+                <div className="absolute top-4 left-4 right-4 bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded">
+                  {submissionStatus}
+                </div>
+              )}
             </CardContent>
           </Card>
           <Card className="bg-white shadow-lg">
@@ -235,7 +361,7 @@ export default function Component() {
             <CardContent className="p-6">
               <ScrollArea className="h-[500px] pr-4">
                 <div className="space-y-4">
-                  {messages.map((msg, index) => (
+                  {messages.map((msg, index) => 
                     <div
                       key={index}
                       className={`flex ${msg.isUser ? 'justify-end' : 'justify-start'}`}
@@ -250,7 +376,7 @@ export default function Component() {
                         <p className="text-sm">{msg.text}</p>
                       </div>
                     </div>
-                  ))}
+                  )}
                 </div>
               </ScrollArea>
             </CardContent>
@@ -278,6 +404,17 @@ export default function Component() {
                   aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
                 >
                   {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={isSpeaking ? stopSpeaking : () => {}}
+                  className={`${
+                    isSpeaking ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-300'
+                  } text-white`}
+                  aria-label={isSpeaking ? 'Stop speaking' : 'Not speaking'}
+                  disabled={!isSpeaking}
+                >
+                  {isSpeaking ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                 </Button>
                 <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white">
                   <Send className="h-4 w-4 mr-2" />
