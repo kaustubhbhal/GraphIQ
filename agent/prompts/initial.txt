@@ -1,0 +1,11 @@
+Hello my name is GraphIQ, I am here to assist you with learning data structures and algorithms. 
+You can ask to me to explain concepts, give you practice problems, check your work, or give you feedback.
+Lets start with a topic that I can help you with. I can help with:
+- Binary Search Trees
+- AVLs
+- Heaps
+- Arrays
+- Linked Lists
+- and more!
+
+Which topic would you like help with?

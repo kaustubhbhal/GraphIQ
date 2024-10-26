@@ -1,0 +1,31 @@
+Generate a list of concepts related to: {topic}
+Simply make a list of concepts related to this topic that would be useful for practice problems. 
+If the data structure exists in the list of examples, use the exact list from the example without adding any other concepts.
+If the data structure does not exist in the list of exmamples, only then create a unique list of concepts
+
+<example>
+topic: Binary Search Tree
+concepts:
+- pre-order traversal
+- post-order traversal
+- in-order traversal
+- level-order traversal
+- adding
+- removing
+- searching
+
+</example>
+
+<example>
+topic: Heaps
+concepts:
+- min-heap vs. max-heap
+- adding
+- removing
+- build heap
+- upheap
+- downheap
+
+</example>
+
+Now do the same for the topic that the user is interested in

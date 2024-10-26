@@ -1,7 +1,13 @@
-Given the following text, determine what the person wants by responding with yes or no answers.
+Given the following text, determine what the person wants by responding with the name of the type of tag they want.
 Follow the exampling formatting exactly and do not say anything else.
 
-Example:
-practice problems: yes
-need help/clarification: no
-check work: no
+<example>
+What does the user want?
+- practice problems
+- need help/clarification
+- check work
+- explain concept
+
+answer:
+practice problems
+</example>
