@@ -28,21 +28,7 @@ export default function Component() {
   const voiceRef = useRef(null)
 
   useEffect(() => {
-    const mermaidDiagram = `
-      graph TD
-        8((8)) --> 3((3))
-        8 --> 10((10))
-        3 --> 1((1))
-        3 --> 6((6))
-        6 --> 4((4))
-        6 --> 7((7))
-        10 --> 14((14))
-        14 --> 13((13))
-    `
-
-    Mermaid.render('mermaid-diagram', mermaidDiagram).then((result) => {
-      setMermaidSvg(result.svg)
-    })
+    Mermaid.initialize({ startOnLoad: true })
 
     // Initialize speech synthesis
     speechSynthesisRef.current = window.speechSynthesis
@@ -50,24 +36,20 @@ export default function Component() {
     // Set up voice
     const setVoice = () => {
       const voices = speechSynthesisRef.current.getVoices()
-      // Try to find an Indian English male voice
       const indianMaleVoice = voices.find(voice => 
         voice.lang.startsWith('en-IN') && voice.name.toLowerCase().includes('male')
       )
       if (indianMaleVoice) {
         voiceRef.current = indianMaleVoice
       } else {
-        // If no Indian male voice is found, try to find any Indian English voice
         const indianVoice = voices.find(voice => voice.lang.startsWith('en-IN'))
         if (indianVoice) {
           voiceRef.current = indianVoice
         } else {
-          // If no Indian voice is found, use the first available English voice
           const englishVoice = voices.find(voice => voice.lang.startsWith('en-'))
           if (englishVoice) {
             voiceRef.current = englishVoice
           } else if (voices.length > 0) {
-            // If no English voice is found, use the first available voice
             voiceRef.current = voices[0]
           }
         }
@@ -78,7 +60,7 @@ export default function Component() {
       speechSynthesisRef.current.onvoiceschanged = setVoice
     }
 
-    setVoice() // Call it once in case voices are already loaded
+    setVoice()
 
     return () => {
       if (speechSynthesisRef.current) {
@@ -90,7 +72,7 @@ export default function Component() {
   useEffect(() => {
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
-    ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)'  // Semi-transparent blue
+    ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)'
     ctx.lineWidth = 3
 
     const resizeCanvas = () => {
@@ -171,7 +153,6 @@ export default function Component() {
       setSubmissionStatus('Failed to save the screenshot. Please try again.')
     }
 
-    // Clear the status message after 5 seconds
     setTimeout(() => setSubmissionStatus(''), 5000)
   }
 
@@ -193,9 +174,25 @@ export default function Component() {
 
       if (response.ok) {
         const data = await response.json()
-        const botMessage = { text: data.text, isUser: false }
-        setMessages((prev) => [...prev, botMessage])
-        speakMessage(botMessage.text)
+        console.log('Response from server:', data)
+
+        if (data && data.text) {
+          const botMessage = { text: data.text, isUser: false }
+          setMessages((prev) => [...prev, botMessage])
+          speakMessage(botMessage.text)
+
+          if (data.diagram) {
+            try {
+              const result = await Mermaid.render('mermaid-diagram-' + Date.now(), data.diagram)
+              setMermaidSvg(result.svg)
+            } catch (error) {
+              console.error('Error rendering Mermaid diagram:', error)
+              setMessages((prev) => [...prev, { text: "Error rendering diagram. Please try again.", isUser: false }])
+            }
+          }
+        } else {
+          throw new Error('Invalid response format from server')
+        }
       } else {
         throw new Error('Failed to get response from LLM')
       }
@@ -357,7 +354,7 @@ export default function Component() {
           </Card>
           <Card className="bg-white shadow-lg">
             <CardHeader className="border-b border-gray-200">
-              <CardTitle className="text-2xl font-semibold  text-gray-800">Chat with In-house LLM</CardTitle>
+              <CardTitle className="text-2xl font-semibold text-gray-800">Chat with In-house LLM</CardTitle>
             </CardHeader>
             <CardContent className="p-6">
               <ScrollArea className="h-[500px] pr-4">
@@ -365,7 +362,7 @@ export default function Component() {
                   {messages.map((msg, index) => (
                     <div
                       key={index}
-                      className={`flex ${msg.isUser ? 'justify-end' : 'justify-start'}`}
+                      className={`flex  ${msg.isUser ? 'justify-end' : 'justify-start'}`}
                     >
                       <div
                         className={`max-w-[80%] rounded-lg p-3 ${
