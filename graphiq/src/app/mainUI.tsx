@@ -181,26 +181,27 @@ export default function Component() {
     setMessages((prev) => [...prev, { text: messageToSend, isUser: true }])
 
     try {
-      const response = await fetch('/api/generate', {
+      const response = await fetch('http://127.0.0.1:5000/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ body: messageToSend }),
+        body: JSON.stringify({ message: messageToSend }),
+        mode: 'cors',
+        credentials: 'include',
       })
 
-      const data = await response.json()
-
       if (response.ok) {
-        const botMessage = { text: data.output, isUser: false }
+        const data = await response.json()
+        const botMessage = { text: data.text, isUser: false }
         setMessages((prev) => [...prev, botMessage])
         speakMessage(botMessage.text)
       } else {
-        setMessages((prev) => [...prev, { text: "Error: " + data.error, isUser: false }])
+        throw new Error('Failed to get response from LLM')
       }
     } catch (error) {
       console.error("Error:", error)
-      setMessages((prev) => [...prev, { text: "An error occurred.", isUser: false }])
+      setMessages((prev) => [...prev, { text: "An error occurred while processing your request.", isUser: false }])
     }
 
     setInput('')
@@ -356,12 +357,12 @@ export default function Component() {
           </Card>
           <Card className="bg-white shadow-lg">
             <CardHeader className="border-b border-gray-200">
-              <CardTitle className="text-2xl font-semibold text-gray-800">Chat with Gemini</CardTitle>
+              <CardTitle className="text-2xl font-semibold  text-gray-800">Chat with In-house LLM</CardTitle>
             </CardHeader>
             <CardContent className="p-6">
               <ScrollArea className="h-[500px] pr-4">
                 <div className="space-y-4">
-                  {messages.map((msg, index) => 
+                  {messages.map((msg, index) => (
                     <div
                       key={index}
                       className={`flex ${msg.isUser ? 'justify-end' : 'justify-start'}`}
@@ -376,7 +377,7 @@ export default function Component() {
                         <p className="text-sm">{msg.text}</p>
                       </div>
                     </div>
-                  )}
+                  ))}
                 </div>
               </ScrollArea>
             </CardContent>

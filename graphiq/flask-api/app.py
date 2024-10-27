@@ -6,6 +6,7 @@ from agent import Model
 
 
 app = Flask(__name__)
+CORS(app, supports_credentials=True, origins=["http://localhost:3000"])
 
 @app.route('/api/save_diagram', methods=['POST'])
 def save_diagram():
