@@ -50,7 +50,7 @@ export default function Component() {
   const [isDrawing, setIsDrawing] = useState(false)
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState([
-    { text: "Hello! I'm GraphIQ, your AI assistant. How can I help you with the learning playground today?", isUser: false, timestamp: new Date() },
+    { text: "Hello! I'm GraphIQ, your AI assistant. How can I help you today?", isUser: false, timestamp: new Date() },
   ])
   const [isListening, setIsListening] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
@@ -221,7 +221,7 @@ export default function Component() {
 
       if (response.ok) {
         const { fileName } = await response.json()
-        setSubmissionStatus(`Screenshot saved successfully as ${fileName}`)
+        setSubmissionStatus(`Diagram Sent to Tutor!`)
         saveDiagramVersion()
       } else {
         throw new Error('Failed to save image')
@@ -552,7 +552,7 @@ export default function Component() {
               <CardTitle className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'} flex items-center justify-between`}>
                 <div className="flex items-center">
                   <ZoomIn className="w-6 h-6 mr-2" />
-                  Learning Playground
+                  Workspace
                 </div>
                 <Dialog open={isVersionHistoryOpen} onOpenChange={setIsVersionHistoryOpen}>
                   <DialogTrigger asChild>
@@ -693,7 +693,7 @@ export default function Component() {
               <CardTitle className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'} flex items-center justify-between`}>
                 <div className="flex items-center">
                   <MessageCircle className="w-6 h-6 mr-2" />
-                  Chat with GraphIQ
+                  GraphIQ Tutor
                 </div>
                 <Dialog open={isSummaryOpen} onOpenChange={setIsSummaryOpen}>
                   <DialogTrigger asChild>
