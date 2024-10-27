@@ -22,8 +22,8 @@ from langchain_core.messages import HumanMessage
 import json
 
 # LangSmith Tracking
-#os.environ["LANGCHAIN_TRACING_V2"] = "true"
-#os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGCHAIN_API_KEY")
+os.environ["LANGCHAIN_TRACING_V2"] = "true"
+os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGCHAIN_API_KEY")
 
 class Model:
     def __init__(self):
@@ -42,10 +42,23 @@ class Model:
             self.past_prompts = f.read() + "\n"
 
         # This is for testing only
-        with open("./prompts/testingPraciceProblem.txt") as f:
-            self.practice_problem = f.read()
+        # with open("./prompts/testingPraciceProblem.txt") as f:
+        #     self.practice_problem = f.read()
         # Use this actually
-        # self.practice_problem = None
+        self.practice_problem = None
+
+    def update_past_prompts(self, to_add: str):
+        if len(self.past_prompts) > 200000:
+            # summarize
+            message = HumanMessage(
+            content=[
+                    {"type": "text", "text": f"Summarize the following text in a brief paragraph"},
+                    {"type": "text", "text": f"{self.past_prompts}"},
+                ],
+            )
+            response = self.llm.invoke([message])
+            self.past_prompts = response
+        self.past_prompts += to_add + "\n"
 
     def parse_mermaid(self, content):
         '''
@@ -75,8 +88,47 @@ class Model:
         })
 
         if "explain concept" in response.lower():
-            pass
+            print("EXPLAIN")
+            explain_template = ChatPromptTemplate.from_template("""
+                {instructions}
+                {topic}
+                {message}
+            """)
+
+            with open("./prompts/explain.txt") as f:
+                instructions = f.read()
+            
+            explain_chain = explain_template | self.llm | self.output_parser
+            response = explain_chain.invoke({
+                "instructions": instructions,
+                "topic": self.topic,
+                "message": message,
+            })
+
+            return response
+
+        elif "switch topic" in response.lower():
+            with open("./prompts/findTopic.txt") as f:
+                prompt = f.read()
+            topic_template = ChatPromptTemplate.from_template("""
+                {prompt}
+                {messages}
+            """)
+            topic_chain = topic_template | self.llm | self.output_parser
+            response = topic_chain.invoke({
+                "prompt": prompt,
+                "messages": message,
+            })
+
+            if "no topic" in response:
+                return {"diagram": None, "text": "Please choose a topic that you would like to learn more about"}
+            self.topic = response
+
+            return_string = f"It seems you would like to learn about {response} now. I can help by explaining the topic, providing you with interactive practice problems, or clarifying your understanding."
+            return return_string
+
         elif "check work" in response.lower():
+            print("CHECK")
             check_work_template = ChatPromptTemplate.from_template("""
                 {instructions1}
                 {example_pic}
@@ -93,15 +145,15 @@ class Model:
                 instructions2 = f.read()
             with open("./prompts/ex_solution.png", "rb") as f:
                 example_pic = base64.b64encode(f.read()).decode("utf-8")
-                with open("./outputs/example_pic.txt", "w") as g:
-                    g.write(example_pic)
+                # with open("./outputs/example_pic.txt", "w") as g:
+                #     g.write(example_pic)
             with open("./prompts/ex_solution_2.png", "rb") as f:
                 example_pic_2 = base64.b64encode(f.read()).decode("utf-8")
             with open("./prompts/checkWork3.txt") as f:
                 instructions3 = f.read()
 
             # compress the file:
-            uncompressed = Image.open('./prompts/ex_solution_3.png')
+            uncompressed = Image.open('../public/drawing.png')
             width, height = uncompressed.size
             new_size = (width//2, height//2)
             resized_image = uncompressed.resize(new_size)
@@ -110,6 +162,9 @@ class Model:
                 example_pic_3 = base64.b64encode(f.read()).decode("utf-8")
 
             # Change to get this image from the frontend
+            if self.practice_problem == None:
+                return "Please complete a practice problem before checking your work"
+
             message = HumanMessage(
             content=[
                     {"type": "text", "text": f"{instructions1}"},
@@ -134,8 +189,27 @@ class Model:
             return response.content
 
         elif "need help/clarification" in response.lower():
-            pass
+            print("HELP")
+            clarify_template = ChatPromptTemplate.from_template("""
+                {instructions}
+                {topic}
+                {message}
+            """)
+
+            with open("./prompts/explain.txt") as f:
+                instructions = f.read()
+            
+            clarify_chain = clarify_template | self.llm | self.output_parser
+            response = clarify_chain.invoke({
+                "instructions": instructions,
+                "topic": self.topic,
+                "message": message,
+            })
+
+            return response
+
         elif "practice problems" in response.lower():
+            print("PP")
             # pp2 prompt to get concepts
             pp2_template = ChatPromptTemplate.from_template("""
                 {instructions}
@@ -170,7 +244,25 @@ class Model:
 
             return response
         else:
-            pass
+            print("GENERAL")
+            general_template = ChatPromptTemplate.from_template("""
+                {instructions}
+                {topic}
+                {message}
+            """)
+
+            with open("./prompts/general.txt") as f:
+                instructions = f.read()
+            
+            general_chain = general_template | self.llm | self.output_parser
+            response = general_chain.invoke({
+                "instructions": instructions,
+                "topic": self.topic,
+                "history": self.past_prompts,
+                "message": message,
+            })
+
+            return response
 
         return response
 
@@ -188,19 +280,21 @@ class Model:
                 "messages": messages,
             })
 
+            if "no topic" in response:
+                return {"diagram": None, "text": "Please choose a topic that you would like to learn more about"}
             self.topic = response
             return_string = f"It seems you would like to learn about {response}. I can help by explaining the topic, providing you with interactive practice problems, or clarifying your understanding. How can I assist you today?"
-            self.past_prompts += return_string + "\n"
+            self.update_past_prompts(return_string)
 
             return_data = {
                 "diagram": None,
                 "text": return_string,
             }
-            self.past_prompts += str(return_data) + "\n"
+            self.update_past_prompts(str(return_data))
             return return_data
         
         response = self.controller(messages)
-        print(response)
+        #print(response)
         diagram, text = self.parse_mermaid(response)
 
         return_data = {

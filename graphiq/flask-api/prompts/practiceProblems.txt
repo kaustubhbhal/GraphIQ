@@ -35,3 +35,31 @@ You can ask me to help if you get stuck at any point or to check your work when 
 
 </example>
 
+<example>
+topic: Binary Search Trees
+concepts:
+- pre-order traversal
+- post-order traversal
+- in-order traversal
+- level-order traversal
+- adding
+- removing
+- searching
+
+answer:
+```mermaid
+graph TD
+    A((10)) --> B((6))
+    A --> C((17))
+    B --> D((3))
+    B --> E((9))
+    C --> F((14))
+    C --> G((24))
+```
+Here is a practice problem to help you learn searching.
+Lets say you are searching for the data for the node 14, circle the nodes that will be searched when looking for the node 14.
+Start at the root and circle nodes until you reach 14
+You can ask me to help if you get stuck at any point or to check your work when you are done.
+
+</example>
+

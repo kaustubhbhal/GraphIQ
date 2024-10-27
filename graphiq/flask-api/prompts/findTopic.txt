@@ -1,9 +1,19 @@
 Given this user input, simply return the topic that they would like to learn about. Do not output anything else.
+If the user does not specify a valid topic to learn about, output "no topic" and nothing else. 
+Valid topics include common data structures and algorithms such as Binary Search Trees, AVLs, Heaps, Trees, Arrays, Linked Lists, and more.
 
 <example>
 I would like to learn about Binary Search Trees
 
 <output>
 Binary Search Trees
+</output>
+</example>
+
+<example>
+I want to learn about data structures
+
+<output>
+no topic
 </output>
 </example>

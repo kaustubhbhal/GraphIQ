@@ -3,10 +3,11 @@ Follow the exampling formatting exactly and do not say anything else.
 
 <example>
 What does the user want?
-- practice problems
-- need help/clarification
-- check work
-- explain concept
+- practice problems - used to provide the user with practice problems relevant to the topic they are trying to learn
+- need help/clarification - used to answer a user's question or help them overcome a misconception
+- check work - used to check the user's work when they are done
+- explain concept - used when the user wants to learn about a topic in greater depth
+- switch topic - used when the user wants to learn about a different data structure or algorithm
 
 answer:
 practice problems
