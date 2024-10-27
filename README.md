@@ -23,7 +23,7 @@ To get a local copy of the project up and running, follow these simple steps.
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/your-username/your-repo-name.git
+   git clone https://github.com/kaustubhbhal/GraphIQ.git
    ```
 
 2. Navigate to the project directory:
