@@ -51,7 +51,7 @@ export default function Component() {
   const [isDrawing, setIsDrawing] = useState(false)
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState([
-    { text: "Hello! I'm GraphIQ, your AI assistant. How can I help you today?", isUser: false, timestamp: new Date() },
+    { text: "Hello my name is GraphIQ, I am here to assist you with learning data structures and algorithms. You can ask to me to explain concepts, give you practice problems, check your work, or give you feedback. Lets start with a topic that I can help you with. I can help with:- Binary Search Trees\n- AVLs\n- Heaps\n- Arrays\n- Linked Lists\n- and more!\n\nWhich topic would you like help with", isUser: false, timestamp: new Date() },
   ])
   const [isListening, setIsListening] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
