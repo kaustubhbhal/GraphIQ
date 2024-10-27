@@ -41,10 +41,6 @@ class Model:
         with open("./prompts/initial.txt") as f:
             self.past_prompts = f.read() + "\n"
 
-        # This is for testing only
-        # with open("./prompts/testingPraciceProblem.txt") as f:
-        #     self.practice_problem = f.read()
-        # Use this actually
         self.practice_problem = None
 
     def update_past_prompts(self, to_add: str):
@@ -78,12 +74,14 @@ class Model:
         # Prompt LLM with controller to figure out what user wants to do
         controller_template = ChatPromptTemplate.from_template("""
             {controller}
+            {topic}
             {user_prompt}
         """)
 
         controller_chain = controller_template | self.llm | self.output_parser
         response = controller_chain.invoke({
             'controller': self.controller_prompt,
+            'topic': str(self.topic),
             'user_prompt': message
         })
 
@@ -222,6 +220,22 @@ class Model:
                 "instructions": instructions,
                 "topic": self.topic,
             })
+            
+            select_concept_template = ChatPromptTemplate.from_template("""
+                {instructions}
+                {topic}
+                {concepts}
+                {message}
+            """)
+            with open("./prompts/selectConcept.txt") as f:
+                instructions = f.read()
+            select_concept_chain = select_concept_template | self.llm | self.output_parser
+            selected_concept = select_concept_chain.invoke({
+                "instructions": instructions,
+                "topic": self.topic,
+                "concepts": concepts,
+                "message": message,
+            })
 
             # feed concepts into practiceProblems prompt
             practice_problem_template = ChatPromptTemplate.from_template("""
@@ -237,7 +251,7 @@ class Model:
             response = practice_problem_chain.invoke({
                 "instructions": instructions,
                 "topic": self.topic,
-                "concepts": concepts,
+                "concepts": selected_concept,
             })
 
             self.practice_problem = response

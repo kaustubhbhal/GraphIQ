@@ -9,14 +9,7 @@ Finally end with a closing statement telling the user to ask you if they need he
 
 <example>
 topic: Binary Search Trees
-concepts:
-- pre-order traversal
-- post-order traversal
-- in-order traversal
-- level-order traversal
-- adding
-- removing
-- searching
+concept: level-order traversal
 
 answer:
 ```mermaid
@@ -37,14 +30,7 @@ You can ask me to help if you get stuck at any point or to check your work when 
 
 <example>
 topic: Binary Search Trees
-concepts:
-- pre-order traversal
-- post-order traversal
-- in-order traversal
-- level-order traversal
-- adding
-- removing
-- searching
+concepts: searching
 
 answer:
 ```mermaid
