@@ -5,35 +5,79 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { ZoomIn, ZoomOut, Send, Eraser, Mic, MicOff, VolumeX, Volume2 } from 'lucide-react'
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
+import { Separator } from "@/components/ui/separator"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { ZoomIn, ZoomOut, Send, Eraser, Mic, MicOff, VolumeX, Volume2, User, Moon, Sun, Download, Sparkles, MessageCircle, History, ChevronLeft, ChevronRight } from 'lucide-react'
 import Mermaid from 'mermaid'
 import html2canvas from 'html2canvas'
+import { cn } from "@/lib/utils"
+
+interface DiagramVersion {
+  svg: string;
+  timestamp: Date;
+}
+
+const formatMessageText = (text: string) => {
+  // Split the text into paragraphs
+  const paragraphs = text.split('\n\n');
+  
+  // Process each paragraph
+  return paragraphs.map((paragraph, index) => {
+    // Check if the paragraph is a code block
+    if (paragraph.startsWith('```') && paragraph.endsWith('```')) {
+      const code = paragraph.slice(3, -3);
+      return (
+        <pre key={index} className="bg-gray-100 p-2 rounded my-2 overflow-x-auto">
+          <code>{code}</code>
+        </pre>
+      );
+    }
+    // Regular paragraph
+    return <p key={index} className="mb-2">{paragraph}</p>;
+  });
+};
 
 export default function Component() {
   const [mermaidSvg, setMermaidSvg] = useState('')
+  const [diagramVersions, setDiagramVersions] = useState<DiagramVersion[]>([])
   const [zoomLevel, setZoomLevel] = useState(1.2)
+  const [currentVersionIndex, setCurrentVersionIndex] = useState(0)
   const canvasRef = useRef(null)
   const playgroundRef = useRef(null)
+  const chatScrollRef = useRef(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState([
-    { text: "Welcome to GraphIQ! How can I assist you with the learning playground?", isUser: false },
+    { text: "Hello! I'm GraphIQ, your AI assistant. How can I help you with the learning playground today?", isUser: false, timestamp: new Date() },
   ])
   const [isListening, setIsListening] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
+  const [isThinking, setIsThinking] = useState(false)
   const [submissionStatus, setSubmissionStatus] = useState('')
+  const [isDarkMode, setIsDarkMode] = useState(false)
+  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false)
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
   const speechSynthesisRef = useRef(null)
   const voiceRef = useRef(null)
 
   useEffect(() => {
-    Mermaid.initialize({ startOnLoad: true })
+    const initializeMermaid = () => {
+      const theme = isDarkMode ? darkModeTheme : lightModeTheme
+      Mermaid.initialize({ 
+        startOnLoad: true,
+        theme: 'base',
+        themeVariables: theme
+      })
+    }
 
-    // Initialize speech synthesis
+    initializeMermaid()
+
     speechSynthesisRef.current = window.speechSynthesis
 
-    // Set up voice
     const setVoice = () => {
       const voices = speechSynthesisRef.current.getVoices()
       const indianMaleVoice = voices.find(voice => 
@@ -67,12 +111,12 @@ export default function Component() {
         speechSynthesisRef.current.cancel()
       }
     }
-  }, [])
+  }, [isDarkMode])
 
   useEffect(() => {
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
-    ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)'
+    ctx.strokeStyle = isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(59, 130, 246, 0.5)'
     ctx.lineWidth = 3
 
     const resizeCanvas = () => {
@@ -87,7 +131,37 @@ export default function Component() {
     return () => {
       window.removeEventListener('resize', resizeCanvas)
     }
-  }, [])
+  }, [isDarkMode])
+
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
+    }
+  }, [messages])
+
+  const lightModeTheme = {
+    primaryColor: '#3b82f6',
+    primaryTextColor: '#1e3a8a',
+    primaryBorderColor: '#60a5fa',
+    lineColor: '#93c5fd',
+    secondaryColor: '#e0e7ff',
+    tertiaryColor: '#bfdbfe',
+    fontFamily: 'Inter, sans-serif',
+    fontSize: '14px',
+  }
+
+  const darkModeTheme = {
+    background: '#1f2937',
+    primaryColor: '#60a5fa',
+    primaryTextColor: '#e0e7ff',
+    primaryBorderColor: '#3b82f6',
+    lineColor: '#93c5fd',
+    secondaryColor: '#374151',
+    tertiaryColor: '#4b5563',
+    textColor: '#e0e7ff',
+    fontFamily: 'Inter, sans-serif',
+    fontSize: '14px',
+  }
 
   const getMousePos = (canvas, evt) => {
     const rect = canvas.getBoundingClientRect()
@@ -145,6 +219,7 @@ export default function Component() {
       if (response.ok) {
         const { fileName } = await response.json()
         setSubmissionStatus(`Screenshot saved successfully as ${fileName}`)
+        saveDiagramVersion()
       } else {
         throw new Error('Failed to save image')
       }
@@ -159,7 +234,9 @@ export default function Component() {
   const handleSend = async (messageToSend = input) => {
     if (!messageToSend.trim()) return
 
-    setMessages((prev) => [...prev, { text: messageToSend, isUser: true }])
+    setMessages((prev) => [...prev, { text: messageToSend, isUser: true, timestamp: new Date() }])
+    setInput('')
+    setIsThinking(true)
 
     try {
       const response = await fetch('http://127.0.0.1:5000/chat', {
@@ -177,7 +254,7 @@ export default function Component() {
         console.log('Response from server:', data)
 
         if (data && data.text) {
-          const botMessage = { text: data.text, isUser: false }
+          const botMessage = { text: data.text, isUser: false, timestamp: new Date() }
           setMessages((prev) => [...prev, botMessage])
           speakMessage(botMessage.text)
 
@@ -185,9 +262,10 @@ export default function Component() {
             try {
               const result = await Mermaid.render('mermaid-diagram-' + Date.now(), data.diagram)
               setMermaidSvg(result.svg)
+              saveDiagramVersion()
             } catch (error) {
               console.error('Error rendering Mermaid diagram:', error)
-              setMessages((prev) => [...prev, { text: "Error rendering diagram. Please try again.", isUser: false }])
+              setMessages((prev) => [...prev, { text: "Error rendering diagram. Please try again.", isUser: false, timestamp: new Date() }])
             }
           }
         } else {
@@ -198,10 +276,10 @@ export default function Component() {
       }
     } catch (error) {
       console.error("Error:", error)
-      setMessages((prev) => [...prev, { text: "An error occurred while processing your request.", isUser: false }])
+      setMessages((prev) => [...prev, { text: "An error occurred while processing your request.", isUser: false, timestamp: new Date() }])
+    } finally {
+      setIsThinking(false)
     }
-
-    setInput('')
   }
 
   const speakMessage = (text) => {
@@ -209,6 +287,7 @@ export default function Component() {
       setIsSpeaking(true)
       const utterance = new SpeechSynthesisUtterance(text)
       utterance.voice = voiceRef.current
+      utterance.rate = 1.5
       utterance.onend = () => setIsSpeaking(false)
       speechSynthesisRef.current.speak(utterance)
     }
@@ -289,23 +368,169 @@ export default function Component() {
     }
   }
 
+  const formatTimestamp = (date) => {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+
+  const toggleDarkMode = () => {
+    setIsDarkMode(!isDarkMode)
+  }
+
+  const exportDiagram = () => {
+    if (mermaidSvg) {
+      const svgBlob = new Blob([mermaidSvg], {type: 'image/svg+xml;charset=utf-8'})
+      const svgUrl = URL.createObjectURL(svgBlob)
+      const downloadLink = document.createElement('a')
+      downloadLink.href = svgUrl
+      downloadLink.download = 'mermaid_diagram.svg'
+      document.body.appendChild(downloadLink)
+      downloadLink.click()
+      document.body.removeChild(downloadLink)
+    }
+  }
+
+  const saveDiagramVersion = () => {
+    if (mermaidSvg) {
+      setDiagramVersions(prev => [...prev, { svg: mermaidSvg, timestamp: new Date() }])
+      setCurrentVersionIndex(prev => prev + 1)
+    }
+  }
+
+  const revertToDiagramVersion = (index: number) => {
+    setMermaidSvg(diagramVersions[index].svg)
+    setCurrentVersionIndex(index)
+    setIsVersionHistoryOpen(false)
+  }
+
+  const navigateVersion = (direction: 'prev' | 'next') => {
+    if (direction === 'prev' && currentVersionIndex > 0) {
+      setCurrentVersionIndex(prev => prev - 1)
+      setMermaidSvg(diagramVersions[currentVersionIndex - 1].svg)
+    } else if (direction === 'next' && currentVersionIndex < diagramVersions.length - 1) {
+      setCurrentVersionIndex(prev => prev + 1)
+      setMermaidSvg(diagramVersions[currentVersionIndex + 1].svg)
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 text-gray-800 p-4 md:p-8">
+    <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-gradient-to-br from-blue-50 to-indigo-100 text-gray-800'} p-4 md:p-8 transition-colors duration-200`}>
       <div className="max-w-7xl mx-auto">
         <header className="flex flex-col md:flex-row justify-between items-center mb-8">
-          <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 mb-4 md:mb-0">
-            GraphIQ
+          <h1 className={`text-4xl font-bold mb-4 md:mb-0 flex items-center`}>
+            <Sparkles className={`w-8 h-8 mr-2 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+            <span className={isDarkMode ? 'text-white' : 'text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600'}>
+              GraphIQ
+            </span>
           </h1>
-          <nav className="space-x-2 md:space-x-4">
-            <Button variant="ghost" className="text-blue-600 hover:text-blue-800 transition-colors">Home</Button>
-            <Button variant="ghost" className="text-blue-600 hover:text-blue-800 transition-colors">About</Button>
-            <Button variant="ghost" className="text-blue-600 hover:text-blue-800 transition-colors">Contact</Button>
+          <nav className="flex items-center space-x-4">
+            <Button variant="ghost" className={isDarkMode ? 'text-white hover:text-gray-300' : 'text-blue-600 hover:text-blue-800'}>Home</Button>
+            <Button variant="ghost" className={isDarkMode ? 'text-white  hover:text-gray-300' : 'text-blue-600 hover:text-blue-800'}>About</Button>
+            <Button variant="ghost" className={isDarkMode ? 'text-white hover:text-gray-300' : 'text-blue-600 hover:text-blue-800'}>Contact</Button>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="dark-mode"
+                checked={isDarkMode}
+                onCheckedChange={toggleDarkMode}
+              />
+              <Label htmlFor="dark-mode" className="sr-only">
+                Dark Mode
+              </Label>
+              {isDarkMode ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+            </div>
           </nav>
         </header>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <Card className="bg-white shadow-lg">
-            <CardHeader className="border-b border-gray-200">
-              <CardTitle className="text-2xl font-semibold text-gray-800">Learning Playground</CardTitle>
+          <Card className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} overflow-hidden`}>
+            <CardHeader className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <CardTitle className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'} flex items-center justify-between`}>
+                <div className="flex items-center">
+                  <ZoomIn className="w-6 h-6 mr-2" />
+                  Learning Playground
+                </div>
+                <Dialog open={isVersionHistoryOpen} onOpenChange={setIsVersionHistoryOpen}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className={`ml-2 ${
+                        isDarkMode 
+                          ? 'bg-gray-700 text-gray-200 hover:bg-gray-600 border-gray-600' 
+                          : 'bg-white text-gray-800 hover:bg-gray-100 border-gray-300'
+                      }`}
+                    >
+                      <History className="w-4 h-4 mr-2" />
+                      Version History
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className={`${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-800'} sm:max-w-[600px]`}>
+                    <DialogHeader>
+                      <DialogTitle className="text-2xl font-bold mb-4">Diagram Version History</DialogTitle>
+                    </DialogHeader>
+                    <div className="flex items-center justify-between mb-4">
+                      <Button
+                        onClick={() => navigateVersion('prev')}
+                        disabled={currentVersionIndex === 0}
+                        variant="outline"
+                        size="sm"
+                        className={`${isDarkMode ? 'bg-gray-700 text-gray-200 hover:bg-gray-600' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
+                      >
+                        <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                      </Button>
+                      <span className="text-sm font-medium">
+                        Version {currentVersionIndex + 1} of {diagramVersions.length}
+                      </span>
+                      <Button
+                        onClick={() => navigateVersion('next')}
+                        disabled={currentVersionIndex === diagramVersions.length - 1}
+                        variant="outline"
+                        size="sm"
+                        className={`${isDarkMode ? 'bg-gray-700 text-gray-200 hover:bg-gray-600' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
+                      >
+                        Next <ChevronRight className="w-4 h-4 ml-1" />
+                      </Button>
+                    </div>
+                    <ScrollArea className="h-[400px] w-full pr-4">
+                      {diagramVersions.map((version, index) => (
+                        <div
+                          key={index}
+                          className={`mb-6 p-4 border rounded-lg transition-all duration-200 ${
+                            index === currentVersionIndex
+                              ? isDarkMode
+                                ? 'bg-blue-900 border-blue-700'
+                                : 'bg-blue-50 border-blue-200'
+                              : isDarkMode
+                              ? 'bg-gray-700 border-gray-600'
+                              : 'bg-white border-gray-200'
+                          }`}
+                        >
+                          <div className="flex justify-between items-center mb-2">
+                            <h3 className="text-lg font-semibold">Version {index + 1}</h3>
+                            <p className="text-sm opacity-70">{formatTimestamp(version.timestamp)}</p>
+                          </div>
+                          <div
+                            dangerouslySetInnerHTML={{ __html: version.svg }}
+                            className="w-full h-48 bg-white rounded-md overflow-hidden shadow-inner"
+                          />
+                          <Button
+                            onClick={() => revertToDiagramVersion(index)}
+                            className={`mt-4 w-full ${
+                              isDarkMode
+                                ? index === currentVersionIndex
+                                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                  : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                                : index === currentVersionIndex
+                                  ? 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                                  : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                            }`}
+                          >
+                            {index === currentVersionIndex ? 'Current Version' : 'Revert to this version'}
+                          </Button>
+                        </div>
+                      ))}
+                    </ScrollArea>
+                  </DialogContent>
+                </Dialog>
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-6 relative min-h-[600px]" ref={playgroundRef}>
               <div className="absolute inset-0 flex items-center justify-center overflow-auto">
@@ -323,62 +548,92 @@ export default function Component() {
                 onMouseOut={stopDrawing}
                 className="absolute inset-0 w-full h-full cursor-crosshair"
               />
-              <div className="absolute bottom-4 left-4 right-4 flex flex-wrap justify-between items-center bg-gray-100 bg-opacity-90 p-2 rounded-lg">
+              <div className={`absolute bottom-4 left-4 right-4 flex flex-wrap justify-between items-center ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} bg-opacity-90 p-4 rounded-lg shadow-lg`}>
                 <div className="flex items-center space-x-2 mb-2 md:mb-0">
-                  <Button onClick={zoomOut} variant="outline" size="icon" className="text-blue-600 border-blue-300">
+                  <Button onClick={zoomOut} variant="outline" size="icon" className={`${isDarkMode ? 'text-blue-300 border-blue-300 hover:bg-blue-900 hover:text-blue-100' : 'text-blue-600 border-blue-300'} transition-colors duration-200`}>
                     <ZoomOut className="h-4 w-4" />
                   </Button>
-                  <Button onClick={zoomIn} variant="outline" size="icon" className="text-blue-600 border-blue-300">
+                  <Button onClick={zoomIn} variant="outline" size="icon" className={`${isDarkMode ? 'text-blue-300 border-blue-300 hover:bg-blue-900 hover:text-blue-100' : 'text-blue-600 border-blue-300'} transition-colors duration-200`}>
                     <ZoomIn className="h-4 w-4" />
                   </Button>
-                  <span className="text-sm text-gray-600">
+                  <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                     Zoom: {Math.round(zoomLevel * 100)}%
                   </span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Button onClick={clearCanvas} variant="outline" className="text-blue-600 border-blue-300">
+                  <Button onClick={clearCanvas} variant="outline" className={`${isDarkMode ? 'text-blue-300 border-blue-300 hover:bg-blue-900 hover:text-blue-100' : 'text-blue-600 border-blue-300'} transition-colors duration-200`}>
                     <Eraser className="h-4 w-4 mr-2" />
                     Clear
                   </Button>
-                  <Button onClick={handleSubmit} variant="outline" className="text-blue-600 border-blue-300">
+                  <Button onClick={handleSubmit} variant="outline" className={`${isDarkMode ? 'text-blue-300 border-blue-300 hover:bg-blue-900 hover:text-blue-100' : 'text-blue-600 border-blue-300'} transition-colors duration-200`}>
                     Submit
+                  </Button>
+                  <Button onClick={exportDiagram} variant="outline" className={`${isDarkMode ? 'text-blue-300 border-blue-300 hover:bg-blue-900 hover:text-blue-100' : 'text-blue-600 border-blue-300'} transition-colors duration-200`}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Export
                   </Button>
                 </div>
               </div>
               {submissionStatus && (
-                <div className="absolute top-4 left-4 right-4 bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded">
+                <div className={`absolute top-4 left-4 right-4 ${isDarkMode ? 'bg-blue-900 border-blue-700 text-blue-100' : 'bg-blue-100 border-blue-400 text-blue-700'} px-4 py-3 rounded shadow-md transition-all duration-300 ease-in-out`}>
                   {submissionStatus}
                 </div>
               )}
             </CardContent>
           </Card>
-          <Card className="bg-white shadow-lg">
-            <CardHeader className="border-b border-gray-200">
-              <CardTitle className="text-2xl font-semibold text-gray-800">Chat with In-house LLM</CardTitle>
+          <Card className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} overflow-hidden`}>
+            <CardHeader className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <CardTitle className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'} flex items-center`}>
+                <MessageCircle className="w-6 h-6 mr-2" />
+                Chat with GraphIQ
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
-              <ScrollArea className="h-[500px] pr-4">
+              <ScrollArea className="h-[500px] pr-4" ref={chatScrollRef}>
                 <div className="space-y-4">
                   {messages.map((msg, index) => (
                     <div
                       key={index}
-                      className={`flex  ${msg.isUser ? 'justify-end' : 'justify-start'}`}
+                      className={`flex items-start space-x-2 ${msg.isUser ? 'justify-end' : 'justify-start'}`}
                     >
+                      {!msg.isUser && (
+                        <Avatar className={`${isDarkMode ? 'bg-blue-600' : 'bg-blue-100'} text-blue-600`}>
+                          <AvatarFallback><Sparkles className="h-4 w-4" /></AvatarFallback>
+                        </Avatar>
+                      )}
                       <div
                         className={`max-w-[80%] rounded-lg p-3 ${
                           msg.isUser
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}
+                            ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white'
+                            : isDarkMode ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-800'
+                        } shadow-md transition-all duration-200 ease-in-out`}
                       >
-                        <p className="text-sm">{msg.text}</p>
+                        {formatMessageText(msg.text)}
+                        <p className={`text-xs mt-1 ${isDarkMode ? 'opacity-50' : 'opacity-50'}`}>{formatTimestamp(msg.timestamp)}</p>
                       </div>
+                      {msg.isUser && (
+                        <Avatar className={`${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'} text-gray-800`}>
+                          <AvatarImage src="/user-avatar.png" alt="User" />
+                          <AvatarFallback><User className="h-4 w-4" /></AvatarFallback>
+                        </Avatar>
+                      )}
                     </div>
                   ))}
+                  {isThinking && (
+                    <div className="flex items-center space-x-2">
+                      <Avatar className={`${isDarkMode ? 'bg-blue-600' : 'bg-blue-100'} text-blue-600`}>
+                        <AvatarFallback><Sparkles className="h-4 w-4" /></AvatarFallback>
+                      </Avatar>
+                      <div className={`${isDarkMode ? 'bg-gray-700' : 'bg-white'} rounded-lg p-4 shadow-md`}>
+                        <p className="text-sm">Thinking...</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </ScrollArea>
             </CardContent>
-            <CardFooter className="border-t border-gray-200 p-4">
+            <Separator className={isDarkMode ? 'bg-gray-700' : 'bg-gray-200'} />
+            <CardFooter className={`p-4`}>
               <form
                 onSubmit={(e) => {
                   e.preventDefault()
@@ -391,15 +646,21 @@ export default function Component() {
                   placeholder="Type your message..."
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  className="flex-grow bg-white border-gray-300 text-gray-800 placeholder-gray-400"
+                  className={`flex-grow ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-800 placeholder-gray-400'} transition-colors duration-200`}
+                  disabled={isThinking}
                 />
                 <Button
                   type="button"
                   onClick={toggleListening}
                   className={`${
-                    isListening ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
-                  } text-white`}
+                    isListening 
+                      ? 'bg-red-600 hover:bg-red-700' 
+                      : isDarkMode 
+                        ? 'bg-blue-700 hover:bg-blue-600 text-blue-100' 
+                        : 'bg-blue-600 hover:bg-blue-700'
+                  } text-white transition-colors duration-200`}
                   aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+                  disabled={isThinking}
                 >
                   {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                 </Button>
@@ -407,14 +668,22 @@ export default function Component() {
                   type="button"
                   onClick={isSpeaking ? stopSpeaking : () => {}}
                   className={`${
-                    isSpeaking ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-300'
-                  } text-white`}
+                    isSpeaking 
+                      ? 'bg-red-600 hover:bg-red-700' 
+                      : isDarkMode
+                        ? 'bg-gray-600 text-gray-300'
+                        : 'bg-gray-300'
+                  } text-white transition-colors duration-200`}
                   aria-label={isSpeaking ? 'Stop speaking' : 'Not speaking'}
                   disabled={!isSpeaking}
                 >
                   {isSpeaking ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                 </Button>
-                <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white">
+                <Button
+                  type="submit"
+                  className={`${isDarkMode ? 'bg-blue-700 hover:bg-blue-600 text-blue-100' : 'bg-blue-600 hover:bg-blue-700 text-white'} transition-colors duration-200`}
+                  disabled={isThinking || input.trim() === ''}
+                >
                   <Send className="h-4 w-4 mr-2" />
                   Send
                 </Button>
