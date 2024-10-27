@@ -10,10 +10,14 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { ZoomIn, ZoomOut, Send, Eraser, Mic, MicOff, VolumeX, Volume2, User, Moon, Sun, Download, Sparkles, MessageCircle, History, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ZoomIn, ZoomOut, Send, Eraser, Mic, MicOff, VolumeX, Volume2, User, Moon, Sun, Download, Sparkles, MessageCircle, History, ChevronLeft, ChevronRight, FileText } from 'lucide-react'
 import Mermaid from 'mermaid'
 import html2canvas from 'html2canvas'
 import { cn } from "@/lib/utils"
+import ReactMarkdown from 'react-markdown'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 interface DiagramVersion {
   svg: string;
@@ -21,12 +25,8 @@ interface DiagramVersion {
 }
 
 const formatMessageText = (text: string) => {
-  // Split the text into paragraphs
   const paragraphs = text.split('\n\n');
-  
-  // Process each paragraph
   return paragraphs.map((paragraph, index) => {
-    // Check if the paragraph is a code block
     if (paragraph.startsWith('```') && paragraph.endsWith('```')) {
       const code = paragraph.slice(3, -3);
       return (
@@ -35,7 +35,6 @@ const formatMessageText = (text: string) => {
         </pre>
       );
     }
-    // Regular paragraph
     return <p key={index} className="mb-2">{paragraph}</p>;
   });
 };
@@ -63,6 +62,10 @@ export default function Component() {
   const audioChunksRef = useRef([])
   const speechSynthesisRef = useRef(null)
   const voiceRef = useRef(null)
+  const [chatQuality, setChatQuality] = useState('')
+  const [chatSummary, setChatSummary] = useState('')
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false)
+  const [isSummaryLoading, setIsSummaryLoading] = useState(false)
 
   useEffect(() => {
     const initializeMermaid = () => {
@@ -381,8 +384,10 @@ export default function Component() {
       const svgBlob = new Blob([mermaidSvg], {type: 'image/svg+xml;charset=utf-8'})
       const svgUrl = URL.createObjectURL(svgBlob)
       const downloadLink = document.createElement('a')
+      
       downloadLink.href = svgUrl
       downloadLink.download = 'mermaid_diagram.svg'
+      
       document.body.appendChild(downloadLink)
       downloadLink.click()
       document.body.removeChild(downloadLink)
@@ -410,6 +415,108 @@ export default function Component() {
       setCurrentVersionIndex(prev => prev + 1)
       setMermaidSvg(diagramVersions[currentVersionIndex + 1].svg)
     }
+  }
+
+  const generateSummary = async () => {
+    setIsSummaryLoading(true)
+    try {
+      const chatHistory = messages.map(msg => `${msg.isUser ? 'User' : 'AI'}: ${msg.text}`).join('\n')
+      const qualityPrompt = `Analyze the following chat conversation and provide feedback on the quality of the interaction, including areas of strength and potential improvements:\n\n${chatHistory}`
+      const summaryPrompt = `Summarize the following chat conversation and provide key takeaways and tips for the user:\n\n${chatHistory}`
+
+      const [qualityResponse, summaryResponse] = await Promise.all([
+        fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body: qualityPrompt }),
+        }),
+        fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body: summaryPrompt }),
+        })
+      ])
+
+      if (qualityResponse.ok && summaryResponse.ok) {
+        const qualityData = await qualityResponse.json()
+        const summaryData = await summaryResponse.json()
+        setChatQuality(qualityData.output)
+        setChatSummary(summaryData.output)
+        setIsSummaryOpen(true)
+      } else {
+        throw new Error('Failed to generate summary')
+      }
+    } catch (error) {
+      console.error('Error generating summary:', error)
+      setChatQuality('Failed to analyze chat quality. Please try again.')
+      setChatSummary('Failed to generate summary. Please try again.')
+    } finally {
+      setIsSummaryLoading(false)
+    }
+  }
+
+  const exportPDF = () => {
+    const doc = new jsPDF()
+    
+    // Add title
+    doc.setFontSize(24)
+    doc.setTextColor(0, 0, 255)
+    doc.text('Chat Summary and Study Guide', 105, 15, { align: 'center' })
+    
+    // Add creation date
+    doc.setFontSize(10)
+    doc.setTextColor(100, 100, 100)
+    doc.text(`Created on ${new Date().toLocaleString()}`, 195, 22, { align: 'right' })
+    
+    // Add chat quality section
+    doc.setFontSize(16)
+    doc.setTextColor(0, 0, 0)
+    doc.text('Chat Quality Analysis', 14, 30)
+    
+    doc.setFontSize(12)
+    doc.setTextColor(80, 80, 80)
+    const qualityLines = doc.splitTextToSize(chatQuality, 180)
+    doc.text(qualityLines, 14, 40)
+    
+    // Add chat summary section
+    const summaryYPosition = 50 + (qualityLines.length * 5)
+    doc.setFontSize(16)
+    doc.setTextColor(0, 0, 0)
+    doc.text('Chat Summary', 14, summaryYPosition)
+    
+    doc.setFontSize(12)
+    doc.setTextColor(80, 80, 80)
+    const summaryLines = doc.splitTextToSize(chatSummary, 180)
+    doc.text(summaryLines, 14, summaryYPosition + 10)
+    
+    // Add key takeaways table
+    const takeaways = [
+      'Understand the core concepts discussed',
+      'Practice implementing the ideas in real-world scenarios',
+      'Refer back to the chat for detailed explanations',
+      'Explore related topics to deepen your understanding'
+    ]
+    
+    const takeawaysYPosition = summaryYPosition + 20 + (summaryLines.length * 5)
+    autoTable(doc, {
+      startY: takeawaysYPosition,
+      head: [['Key Takeaways']],
+      body: takeaways.map(item => [item]),
+      headStyles: { fillColor: [0, 0, 255], textColor: 255 },
+      alternateRowStyles: { fillColor: [240, 240, 255] },
+      margin: { top: 10 },
+    })
+    
+    // Add footer
+    const pageCount = doc.internal.getNumberOfPages()
+    doc.setFontSize(10)
+    doc.setTextColor(150, 150, 150)
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i)
+      doc.text(`Page ${i} of ${pageCount}`, 195, 285, { align: 'right' })
+    }
+    
+    doc.save('chat_summary_study_guide.pdf')
   }
 
   return (
@@ -583,9 +690,65 @@ export default function Component() {
           </Card>
           <Card className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} overflow-hidden`}>
             <CardHeader className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <CardTitle className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'} flex items-center`}>
-                <MessageCircle className="w-6 h-6 mr-2" />
-                Chat with GraphIQ
+              <CardTitle className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'} flex items-center justify-between`}>
+                <div className="flex items-center">
+                  <MessageCircle className="w-6 h-6 mr-2" />
+                  Chat with GraphIQ
+                </div>
+                <Dialog open={isSummaryOpen} onOpenChange={setIsSummaryOpen}>
+                  <DialogTrigger asChild>
+                    <Button
+                      onClick={generateSummary}
+                      variant="outline"
+                      size="sm"
+                      className={`${
+                        isDarkMode
+                          ? 'bg-gray-700 text-gray-200 hover:bg-gray-600 border-gray-600'
+                          : 'bg-white text-gray-800 hover:bg-gray-100 border-gray-300'
+                      }`}
+                      disabled={isSummaryLoading}
+                    >
+                      <FileText className="w-4 h-4 mr-2" />
+                      {isSummaryLoading ? 'Generating...' : 'Generate Summary'}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className={`${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-800'} sm:max-w-[600px]`}>
+                    <DialogHeader>
+                      <DialogTitle className="text-2xl font-bold mb-4">Chat Analysis and Summary</DialogTitle>
+                    </DialogHeader>
+                    <Tabs defaultValue="quality" className="w-full">
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="quality">Chat Quality</TabsTrigger>
+                        <TabsTrigger value="summary">Chat Summary</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="quality">
+                        <ScrollArea                           className="h-[400px] w-full pr-4">
+                          <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                            <ReactMarkdown>{chatQuality}</ReactMarkdown>
+                          </div>
+                        </ScrollArea>
+                      </TabsContent>
+                      <TabsContent value="summary">
+                        <ScrollArea className="h-[400px] w-full pr-4">
+                          <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                            <ReactMarkdown>{chatSummary}</ReactMarkdown>
+                          </div>
+                        </ScrollArea>
+                      </TabsContent>
+                    </Tabs>
+                    <Button
+                      onClick={exportPDF}
+                      className={`mt-4 w-full ${
+                        isDarkMode
+                          ? 'bg-blue-600 text-white hover:bg-blue-700'
+                          : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                      }`}
+                    >
+                      <FileText className="w-4 h-4 mr-2" />
+                      Export PDF Study Guide
+                    </Button>
+                  </DialogContent>
+                </Dialog>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
