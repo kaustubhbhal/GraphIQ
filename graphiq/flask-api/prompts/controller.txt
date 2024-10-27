@@ -1,7 +1,6 @@
 Given the following text, determine what the person wants by responding with the name of the type of tag they want.
 Follow the exampling formatting exactly and do not say anything else.
 
-<example>
 What does the user want?
 - practice problems - used to provide the user with practice problems relevant to the topic they are trying to learn
 - need help/clarification - used to answer a user's question or help them overcome a misconception
@@ -9,6 +8,37 @@ What does the user want?
 - explain concept - used when the user wants to learn about a topic in greater depth
 - switch topic - used when the user wants to learn about a different data structure or algorithm
 
+<example>
+topic: Binary Search Trees
+Can you explain how Binary Search Trees work
+answer:
+explain concept
+</example>
+
+<example>
+topic: Binary Search Trees
+I would like practice problems about level-order traversals
 answer:
 practice problems
+</example>
+
+<example>
+topic: Binary Search Trees
+I would like to learn about AVLs
+answer:
+switch topic
+</example>
+
+<example>
+topic: AVLs
+Can you check my work?
+answer:
+check work
+</example>
+
+<example>
+topic: Heaps
+I don't understand why my solution is incorrect
+answer:
+need help/clarification
 </example>
